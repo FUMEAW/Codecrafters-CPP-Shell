@@ -16,7 +16,14 @@ int main() {
         return 0;
       }
     }
-    std::cout << input << ": command not found" << '\n';
+    else if (input.contains("echo")){
+      int echoIndex{input.find(' ') + 1}; //Returns the index of the first character after echo
+      std::string phrase{input.substr(echoIndex, (input.length() - echoIndex))};
+      std::cout << phrase << '\n';
+    }
+    else {
+      std::cout << input << ": command not found" << '\n';
+    }
   }
   
 }
