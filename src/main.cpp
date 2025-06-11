@@ -2,69 +2,89 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-#include <csdlib>
+#include <stdlib.h>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <array>
 
-std::string getSubString(int index, std::string input, int length){
+std::string exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+std::string getSubString(std::string::size_type index, const std::string& input, std::string::size_type length){
   std::string phrase{input.substr(index, length)};
   return phrase;
 }
-int checkDirForFile(std::string directory, std::string command){
-  for (const auto & entry : std::filesystem::directory_iterator(directory)) {
-    std::string path{entry.path()};
-    if( path.contains(command) ){
-      std::cout << command << " is " << directory;
-      return 1;
-    }
-  }
-  return 0;
-}
-std::vector<std::string> getPaths(std::string argPath){
-  bool pathSearch = true;
+std::vector<std::string> splitString(std::string_view argPath, char delimeter){
+  std::string path{argPath};
   std::vector<std::string> paths;
-
-  int startIndex{0};
-  while (pathSearch){
-    int index = argPath.find(':');
-    if (index = -1){
-      pathSearch = false;
+  while (true){
+    std::string::size_type index = path.find(delimeter);
+    if (index == std::string::npos){
       break;
     }
-    paths.push_back(getSubString(0,argPath,index));
-    argPath = getSubString(index,argPath,(argPath.length() - index));
+    paths.push_back(path.substr(0, index));
+    path = path.substr(index + 1);
   }
-
+  if (!path.empty()) {
+    paths.push_back(path);
+  }
   return paths;
 }
+int checkDirForFile(const std::string& directory, const std::string& command){
+  try{
+    for (const auto & entry : std::filesystem::directory_iterator(directory)) {
+    std::string path{entry.path()};
+    std::vector<std::string> folders = splitString(path, '/');
+    if (folders[folders.size() - 1] == command) {
+      std::cout << command << " is " << path << '\n';
+      return 1;
+      } 
+    }
+  }
+  catch (const std::filesystem::filesystem_error& e){
+    return 0;
+  } 
+  return 0;
+}
 
-int main(int argc, char* argv[]) {
-  // Flush after every std::cout / std:cerr
+
+
+int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
-  std::vector<std::string> paths = getPaths(system("echo $PATH"));
+  std::vector<std::string> paths = splitString(exec("echo $PATH"), ':');
 
-  // Uncomment this block to pass the first stage
   while (true){
     std::cout << "$ ";
     std::string input;
     std::getline(std::cin, input);
-    if (getSubString(0, input, 4) == "exit" ){
+    if (input.substr(0, 4) == "exit" ){
       if (input.contains("0")){
         return 0;
       }
     }
-    else if (getSubString(0, input, 4) == "echo"){
-      long unsigned int echoIndex{input.find(' ') + 1}; //Returns the index of the first character after echo
-      std::string phrase = getSubString(echoIndex,input,(input.length() - echoIndex));
+    else if (input.substr(0, 4) == "echo"){
+      std::string::size_type echoIndex{input.find(' ') + 1};
+      std::string phrase = input.substr(echoIndex);
       std::cout << phrase << '\n';
     }
-    else if (getSubString(0, input, 4) == "type"){
-      long unsigned int typeIndex{input.find(' ') + 1}; //Returns the index of the first character after type
-      std::string command = getSubString(typeIndex, input, (input.length() - typeIndex));
+    else if (input.substr(0, 4) == "type"){
+      std::string::size_type typeIndex{input.find(' ') + 1};
+      std::string command = input.substr(typeIndex);
       if (command.contains("echo")){
         std::cout << "echo is a shell builtin" << '\n';
       }
-      
       else if (command.contains("exit")){
         std::cout << "exit is a shell builtin" << '\n';
       }
@@ -73,8 +93,8 @@ int main(int argc, char* argv[]) {
       }
       else{
         int commandStatus{};
-        for (int i = 0; i < paths.size(); i++){
-          commandStatus = checkDirForFile(paths[i],command);
+        for (std::size_t i = 0; i < paths.size(); i++){
+          commandStatus = checkDirForFile(paths[i], command);
           if(commandStatus){
             break;
           }
@@ -88,6 +108,5 @@ int main(int argc, char* argv[]) {
       std::cout << input << ": command not found" << '\n';
     }
   }
-  
 }
 
