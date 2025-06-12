@@ -9,6 +9,7 @@
 #include <array>
 #include <optional>
 #include "unistd.h"
+#include <cstdlib>
 
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
@@ -93,6 +94,11 @@ int main() {
         else if (input.substr(0,2) == "cd"){
             std::string::size_type pathIndex{input.find(' ') + 1};
             std::string directory = input.substr(pathIndex).c_str();
+            if (directory.contains("~")){
+                std::string_view home{std::getenv("HOME")};
+                auto pos {directory.find("~")};
+                directory.replace(pos,pos + 1,home);
+            };
             if (chdir(directory.c_str()) == -1){
                 std::cout << "cd: " << directory <<": No such file or directory" << '\n';
             }
