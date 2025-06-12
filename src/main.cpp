@@ -3,12 +3,12 @@
 #include <vector>
 #include <filesystem>
 #include <stdlib.h>
-#include <unistd.h> 
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
 #include <array>
 #include <optional>
+#include "unistd.h"
 
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
@@ -92,10 +92,11 @@ int main() {
         }
         else if (input.substr(0,2) == "cd"){
             std::string::size_type pathIndex{input.find(' ') + 1};
-            const char* directory = input.substr(pathIndex).c_str();
-            if (chdir(directory)){
-                std::cout << "cd work" << '\n';
+            std::string directory = input.substr(pathIndex).c_str();
+            if (chdir(directory.c_str()) == -1){
+                std::cout << "cd: " << directory <<": No such file or directory" << '\n';
             }
+            
         }
         else if (input.substr(0, 4) == "type"){
             std::string::size_type typeIndex{input.find(' ') + 1};
