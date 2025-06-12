@@ -3,6 +3,7 @@
 #include <vector>
 #include <filesystem>
 #include <stdlib.h>
+#include <unistd.h> 
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -88,6 +89,13 @@ int main() {
         }
         else if (input.substr(0,4) == "pwd"){
             std::cout << std::filesystem::current_path().string() << '\n';
+        }
+        else if (input.substr(0,2) == "cd"){
+            std::string::size_type pathIndex{input.find(' ') + 1};
+            const char* directory = input.substr(pathIndex).c_str();
+            if (chdir(directory)){
+                std::cout << "cd work" << '\n';
+            }
         }
         else if (input.substr(0, 4) == "type"){
             std::string::size_type typeIndex{input.find(' ') + 1};
