@@ -86,6 +86,9 @@ int main() {
             std::string phrase = input.substr(echoIndex);
             std::cout << phrase << '\n';
         }
+        else if (input.substr(0,4) == "pwd"){
+            std::cout << std::filesystem::current_path().string() << '\n';
+        }
         else if (input.substr(0, 4) == "type"){
             std::string::size_type typeIndex{input.find(' ') + 1};
             std::string command = input.substr(typeIndex);
@@ -97,6 +100,9 @@ int main() {
             }
             else if (command.contains("type")){
                 std::cout << "type is a shell builtin" << '\n';
+            }
+            else if(command.contains("pwd")){
+                std::cout << "pwd is a shell builtin" << '\n';
             }
             else{
                 std::string commandStatus = checkDirsForFile(paths, command);
