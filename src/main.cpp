@@ -10,6 +10,9 @@
 #include <optional>
 #include "unistd.h"
 #include <cstdlib>
+#include "Console.hpp"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
@@ -65,79 +68,81 @@ std::string checkDirsForFile(const std::vector<std::string>& paths, const std::s
     return "";
 }
 
+namespace cr = CppReadline;
+using ret = cr::Console::ReturnCode;
+
+unsigned echo(std::vector<std::string> inputVector){
+    if (inputVector.size() > 1){
+        for (long unsigned i = 1; i < inputVector.size(); i++){
+            std::cout << inputVector[i] << " ";
+            if (i == (inputVector.size() - 1)){
+                std::cout << '\n';
+            }
+        }
+    } 
+    return 0;
+}
+
+unsigned my_exit(std::vector<std::string> inputVector){
+    if (inputVector.size() > 1 && inputVector[1] == "0"){
+        std::exit(0);
+    }
+    return 0;
+}
+
+unsigned pwd([[maybe_unused]]std::vector<std::string> inputVector){
+    std::cout << std::filesystem::current_path().string() << '\n';
+    return 0;
+}
+
+unsigned cd(std::vector<std::string> inputVector){
+    std::string directory = inputVector[1];
+    if (directory.contains("~")){
+        std::string_view home{std::getenv("HOME")};
+        auto pos {directory.find("~")};
+        directory.replace(pos,pos + 1,home);
+    };
+    if (chdir(directory.c_str()) == -1){
+        std::cout << "cd: " << directory <<": No such file or directory" << '\n';
+        return 1;
+    }
+    return 0;
+}
+
+unsigned type(std::vector<std::string> inputVector){
+    std::string command = inputVector[1];
+    std::string pathEnv = exec("echo $PATH");
+    if (!pathEnv.empty() && pathEnv.back() == '\n') pathEnv.pop_back(); // Remove trailing newline if present
+    std::vector<std::string> paths = splitString(pathEnv, ':');
+    std::string commandStatus = checkDirsForFile(paths, command);
+
+    if (command.contains("echo")) std::cout << "echo is a shell builtin" << '\n';
+    else if (command.contains("exit")) std::cout << "exit is a shell builtin" << '\n';
+    else if (command.contains("type")) std::cout << "type is a shell builtin" << '\n';
+    else if(command.contains("pwd")) std::cout << "pwd is a shell builtin" << '\n';
+    else if (commandStatus.empty()){
+        std::cout << command << ": not found" << '\n';
+        return 1;
+    }
+    else{
+        std::cout << command << " is " << commandStatus << '\n';
+        return 0;
+    }
+    return 0;
+}
+
 int main() {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
+    
+    cr::Console c("$ ");
+    c.registerCommand("echo", echo);
+    c.registerCommand("exit", my_exit );
+    c.registerCommand("pwd",pwd);
+    c.registerCommand("cd", cd);
+    c.registerCommand("type", type);
 
-    std::string pathEnv = exec("echo $PATH");
-    // Remove trailing newline if present
-    if (!pathEnv.empty() && pathEnv.back() == '\n') pathEnv.pop_back();
-    std::vector<std::string> paths = splitString(pathEnv, ':');
 
-    while (true){
-        std::cout << "$ ";
-        std::string input;
-        std::getline(std::cin, input);
-        if (input.substr(0, 4) == "exit" ){
-            if (input.contains("0")){
-                return 0;
-            }
-        }
-        else if (input.substr(0, 4) == "echo"){
-            std::string::size_type echoIndex{input.find(' ') + 1};
-            std::string phrase = input.substr(echoIndex);
-            std::cout << phrase << '\n';
-        }
-        else if (input.substr(0,4) == "pwd"){
-            std::cout << std::filesystem::current_path().string() << '\n';
-        }
-        else if (input.substr(0,2) == "cd"){
-            std::string::size_type pathIndex{input.find(' ') + 1};
-            std::string directory = input.substr(pathIndex).c_str();
-            if (directory.contains("~")){
-                std::string_view home{std::getenv("HOME")};
-                auto pos {directory.find("~")};
-                directory.replace(pos,pos + 1,home);
-            };
-            if (chdir(directory.c_str()) == -1){
-                std::cout << "cd: " << directory <<": No such file or directory" << '\n';
-            }
-            
-        }
-        else if (input.substr(0, 4) == "type"){
-            std::string::size_type typeIndex{input.find(' ') + 1};
-            std::string command = input.substr(typeIndex);
-            if (command.contains("echo")){
-                std::cout << "echo is a shell builtin" << '\n';
-            }
-            else if (command.contains("exit")){
-                std::cout << "exit is a shell builtin" << '\n';
-            }
-            else if (command.contains("type")){
-                std::cout << "type is a shell builtin" << '\n';
-            }
-            else if(command.contains("pwd")){
-                std::cout << "pwd is a shell builtin" << '\n';
-            }
-            else{
-                std::string commandStatus = checkDirsForFile(paths, command);
-                if (commandStatus.empty()){
-                    std::cout << command << ": not found" << '\n';
-                }
-                else{
-                  std::cout << command << " is " << commandStatus << '\n';
-                }
-            }
-        }
-        else {
-            std::vector<std::string> args = splitString(input, ' ');
-            std::string commandStatus = checkDirsForFile(paths, args[0]);
-            if (!commandStatus.empty()){
-                std::cout << exec(input.c_str());
-            } else {
-                std::cout << input << ": command not found" << '\n';
-            }
-        }
-    }
+    while (c.readLine() != ret::Quit);
 }
 
