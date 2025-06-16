@@ -220,6 +220,7 @@ namespace CppReadline {
             return strdup(command.c_str());
             }
         }
+        std::cout << '\x07' << std::flush;
         return nullptr;
     }
 }

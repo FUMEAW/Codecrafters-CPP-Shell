@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <array>
 #include <optional>
-#include "unistd.h"
+#include <unistd.h>
 #include <cstdlib>
 #include "Console.hpp"
 #include <readline/readline.h>
@@ -67,7 +67,28 @@ std::string checkDirsForFile(const std::vector<std::string>& paths, const std::s
     }
     return "";
 }
-
+std::string addExecutablesToCommands(const std::vector<std::string>& paths, CppReadline::Console& c){
+    for (const auto& directory: paths){
+        try{
+            for (const auto & entry : std::filesystem::directory_iterator(directory)) {
+                if (!access(entry.path().c_str(), X_OK)){
+                    std::vector<std::string> commandPath = splitString(entry.path().string(), '/');
+                    c.registerCommand(commandPath.back(), [=](std::vector<std::string> inputVector) -> unsigned{
+                        if (inputVector.size() > 1){
+                            std::cout << exec(commandPath.back().c_str());
+                            return 0;
+                        }
+                        return 1;
+                    });
+                }
+            }
+        }
+        catch (const std::filesystem::filesystem_error& e){
+            return "";
+        } 
+    } 
+    return "";
+}
 namespace cr = CppReadline;
 using ret = cr::Console::ReturnCode;
 
@@ -141,8 +162,12 @@ int main() {
     c.registerCommand("pwd",pwd);
     c.registerCommand("cd", cd);
     c.registerCommand("type", type);
-
-
+    
+    std::string pathEnv{std::getenv("PATH")};
+    if (!pathEnv.empty() && pathEnv.back() == '\n') pathEnv.pop_back(); // Remove trailing newline if present
+    std::vector<std::string> paths = splitString(pathEnv, ':');
+    addExecutablesToCommands(paths, c);
+    
     while (c.readLine() != ret::Quit);
 }
 
