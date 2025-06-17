@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 
+
 namespace CppReadline {
     class Console {
         public:
