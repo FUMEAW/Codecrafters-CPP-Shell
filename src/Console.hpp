@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <readline/history.h>
 
 
 namespace CppReadline {
@@ -108,6 +109,11 @@ namespace CppReadline {
              * @return The result of the operation.
              */
             int readLine();
+
+            /**
+             * @brief This function gets the hist_entry at a position
+             */
+            HIST_ENTRY** getHistory();
         private:
             Console(const Console&) = delete;
             Console(Console&&) = delete;

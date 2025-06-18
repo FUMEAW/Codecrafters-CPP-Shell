@@ -223,4 +223,8 @@ namespace CppReadline {
         std::cout << '\x07' << std::flush;
         return nullptr;
     }
+    HIST_ENTRY** Console::getHistory(){
+        return history_list();
+    }
+    
 }
