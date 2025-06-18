@@ -114,6 +114,16 @@ namespace CppReadline {
              * @brief This function gets the hist_entry at a position
              */
             HIST_ENTRY** getHistory();
+
+            /**
+             * @brief This function gets the $PATH environmental variable split up as a vector.
+             */
+            std::vector<std::string> getPaths();
+
+            /**
+             * @brief This function gets the current executables in $PATH that are not commands. Uses another shell(exec)
+             */
+            std::vector<std::string> getExecutables();
         private:
             Console(const Console&) = delete;
             Console(Console&&) = delete;
@@ -132,7 +142,7 @@ namespace CppReadline {
              * @brief This function reserves the use of the GNU readline facilities to the calling Console instance.
              */
             void reserveConsole();
-
+            
             // GNU newline interface to our commands.
             using commandCompleterFunction = char**(const char * text, int start, int end);
             using commandIteratorFunction = char*(const char * text, int state);

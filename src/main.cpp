@@ -82,38 +82,7 @@ std::string checkDirsForFile(const std::vector<std::string> &paths, const std::s
     }
     return "";
 }
-std::string addExecutablesToCommands(const std::vector<std::string> &paths, CppReadline::Console &c)
-{
-    for (const auto &directory : paths)
-    {
-        try
-        {
-            std::vector<std::string> registeredCommands{c.getRegisteredCommands()};
-            for (const auto &entry : std::filesystem::directory_iterator(directory))
-            {
-                if (!access(entry.path().c_str(), X_OK))
-                {
-                    std::vector<std::string> commandPath = splitString(entry.path().string(), '/');
-                    if (std::find(registeredCommands.begin(), registeredCommands.end(), commandPath.back()) == registeredCommands.end())
-                    {
-                        c.registerCommand(commandPath.back(), [=](std::vector<std::string> inputVector) -> unsigned
-                                          {
-                            if (inputVector.size() > 1){
-                                std::cout << exec(commandPath.back().c_str());
-                                return 0;
-                            }
-                            return 1; });
-                    }
-                }
-            }
-        }
-        catch (const std::filesystem::filesystem_error &e)
-        {
-            return "";
-        }
-    }
-    return "";
-}
+
 namespace cr = CppReadline;
 using ret = cr::Console::ReturnCode;
 
@@ -123,7 +92,7 @@ unsigned echo(std::vector<std::string> inputVector)
     {
         for (long unsigned i = 1; i < inputVector.size(); i++)
         {
-            std::cout << inputVector[i] << " ";
+            std::cout << inputVector[i].c_str() << " ";
             if (i == (inputVector.size() - 1))
             {
                 std::cout << '\n';
@@ -187,7 +156,8 @@ unsigned type(std::vector<std::string> inputVector)
             std::cout << "type is a shell builtin" << '\n';
         else if (command.contains("pwd"))
             std::cout << "pwd is a shell builtin" << '\n';
-        else if (command.contains("history")){
+        else if (command.contains("history"))
+        {
             std::cout << "history is a shell builtin" << '\n';
         }
         else if (commandStatus.empty())
@@ -214,21 +184,21 @@ int main()
     std::string pathEnv{std::getenv("PATH")};
     if (!pathEnv.empty() && pathEnv.back() == '\n')
         pathEnv.pop_back(); // Remove trailing newline if present
-    // std::vector<std::string> paths = splitString(pathEnv, ':');
-    // addExecutablesToCommands(paths, c);
+
 
     c.registerCommand("echo", echo);
     c.registerCommand("exit", my_exit);
     c.registerCommand("pwd", pwd);
     c.registerCommand("cd", cd);
-    c.registerCommand("type", type); 
-    
-    while (c.readLine() != ret::Quit){
-        HIST_ENTRY** histArray[]{c.getHistory()};
+    c.registerCommand("type", type);
+
+    while (c.readLine() != ret::Quit)
+    {
+        HIST_ENTRY **histArray[]{c.getHistory()};
         int size = sizeof(histArray) / sizeof(histArray[0]);
-        for (int i = size - 5;i < size; i++){
-            std::string_view currentEntry{histArray[0][0]->line}; 
+        for (int i = size - 5; i < size; i++)
+        {
+            std::string_view currentEntry{histArray[0][0]->line};
         }
-        
     }
 }

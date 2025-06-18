@@ -7,6 +7,7 @@
 #include <iterator>
 #include <sstream>
 #include <unordered_map>
+#include <filesystem>
 
 #include <cstdlib>
 #include <cstring>
@@ -136,9 +137,7 @@ namespace CppReadline {
             return static_cast<int>((it->second)(inputs));
         }
 
-        std::string pathEnv{std::getenv("PATH")};
-        if (!pathEnv.empty() && pathEnv.back() == '\n') pathEnv.pop_back(); // Remove trailing newline if present
-        std::vector<std::string> paths = splitString(pathEnv, ':');
+        std::vector<std::string> paths{getPaths()};
         std::string_view dirCheck = checkDirsForFile(paths, inputs[0]); 
 
         if (dirCheck.size() != 0){
@@ -205,19 +204,20 @@ namespace CppReadline {
         return completionList;
     }
 
-    char * Console::commandIterator(const char * text, int state) {
+    char * Console::commandIterator(const char * text, int state=0) {
         static Impl::RegisteredCommands::iterator it;
         if (!currentConsole)
             return nullptr;
-        auto& commands = currentConsole->pimpl_->commands_;
 
-        if ( state == 0 ) it = begin(commands);
-
-        while ( it != end(commands) ) {
-            auto & command = it->first;
-            ++it;
+        if (state != 0) return nullptr;
+        std::vector<std::string> commandsVector {currentConsole->getRegisteredCommands()};
+        std::vector<std::string> executables {currentConsole->getExecutables()};
+        commandsVector.insert(commandsVector.end(), executables.begin(), executables.end());
+        
+        for( long unsigned int i = 0; i < commandsVector.size(); i++ ) {
+            std::string command{commandsVector[i]};
             if ( command.find(text) != std::string::npos ) {
-            return strdup(command.c_str());
+                return strdup(command.c_str());
             }
         }
         std::cout << '\x07' << std::flush;
@@ -226,5 +226,31 @@ namespace CppReadline {
     HIST_ENTRY** Console::getHistory(){
         return history_list();
     }
-    
+    std::vector<std::string> Console::getPaths() {
+        std::string pathEnv{std::getenv("PATH")};
+        if (!pathEnv.empty() && pathEnv.back() == '\n') pathEnv.pop_back(); // Remove trailing newline if present
+        std::vector<std::string> paths = splitString(pathEnv, ':');
+        return paths;
+    }
+
+    std::vector<std::string> Console::getExecutables() {
+        std::vector<std::string> pathCommands{};
+        const std::vector<std::string> paths = this->getPaths();
+        for (const auto &directory : paths) {
+            try {
+                std::vector<std::string> registeredCommands{this->getRegisteredCommands()};
+                for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+                    if (!access(entry.path().c_str(), X_OK)) {
+                        std::vector<std::string> commandPath = splitString(entry.path().string(), '/');
+                        if (std::find(registeredCommands.begin(), registeredCommands.end(), commandPath.back()) == registeredCommands.end()) {
+                            pathCommands.push_back(commandPath.back());
+                        }
+                    }
+                }
+            } catch (const std::filesystem::filesystem_error &e) {
+                return pathCommands;
+            }
+        }
+        return pathCommands;
+    }
 }
